@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
 from flask_mysqldb import MySQL
 from config import _MYSQL_HOST, _MYSQL_USER, _MYSQL_PASSWORD, _MYSQL_DB, _SECRET_KEY_APP
+from flask_cors import CORS
 
 # init
 app = Flask(__name__)
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 # connection
 app.config["MYSQL_HOST"] = _MYSQL_HOST
@@ -94,6 +96,51 @@ def get_one_user(id):
     return response
 
 
+# teams
+# get all
+@app.route("/teams", methods=["GET"])
+def get_all_teams():
+    """
+    TEAMS
+    GET ALL
+    """
+    cursor = mysql.connection.cursor()
+    cursor.execute("select * from teams")
+    data = cursor.fetchall()
+    cursor.close()
+    data_res = []
+    for d in data:
+        data_res.append({"id": d[0], "name": d[1]})
+    message = {"message": "teams listed", "data": data_res}
+    response = jsonify(message)
+    response.status_code = 200
+    return response
+
+
+# get one
+@app.route("/teams/<id>", methods=["GET"])
+def get_one_team(id):
+    """
+    TEAMS
+    GET ONE
+    """
+    cursor = mysql.connection.cursor()
+    cursor.execute(
+        "select  u.id as 'User id',u.name as 'User',t.id as 'Team Id', t.name as 'Team' from teams as t, users as u where u.teamId = t.id  and t.id =%s",
+        (id),
+    )
+    data = cursor.fetchall()
+    cursor.close()
+    data_res = []
+    for d in data:
+        data_res.append({"id": d[0], "name": d[1], "teamId": d[2], "team": d[3]})
+    # data_res = {"id": data[0][0], "name": data[0][1], "user": data[0][2], "userId": data[0][3]}
+    message = {"message": "team listed", "data": data_res}
+    response = jsonify(message)
+    response.status_code = 200
+    return response
+
+
 # get sales by user
 @app.route("/sales/users/<id>", methods=["GET"])
 def get_sales_by_user(id):
@@ -103,13 +150,23 @@ def get_sales_by_user(id):
     """
     cursor = mysql.connection.cursor()
     cursor.execute(
-        "SELECT u.name, SUM(s.amount) from sales as s, users as u where s.userId = u.id and u.id = %s group by u.id",
+        "SELECT s.id AS 'Id Venta', s.createdAt AS 'Fecha Venta',c.name AS 'Nombre Cliente',s.amount AS 'Monto',u.name AS 'Nombre Usuario',t.name AS 'Nombre Equipo'FROM sales AS s, users AS u, clients AS c, teams AS t WHERE s.userId = u.id and u.id = %s AND s.clientId = c.id AND u.teamId = t.id GROUP BY  s.id order by s.id",
         (id),
     )
     data = cursor.fetchall()
-
     cursor.close()
-    data_res = {"name": data[0][0], "sales": data[0][1]}
+    data_res = []
+    for d in data:
+        data_res.append(
+            {
+                "id": d[0],
+                "createdAt": d[1],
+                "clientName": d[2],
+                "amount": d[3],
+                "userName": d[4],
+                "teamName": d[5],
+            }
+        )
     message = {"message": "sales by user", "data": data_res}
     response = jsonify(message)
     response.status_code = 200
@@ -125,13 +182,55 @@ def get_sales_by_teams(id):
     """
     cursor = mysql.connection.cursor()
     cursor.execute(
-        "SELECT  t.name, SUM(s.amount) FROM sales AS s, users AS u, teams AS t WHERE s.userId = u.id AND u.teamId = t.id AND t.id = %s GROUP BY  t.id",
+        "SELECT s.id AS 'Id Venta', s.createdAt AS 'Fecha Venta',c.name AS 'Nombre Cliente',s.amount AS 'Monto',u.name AS 'Nombre Usuario',t.name AS 'Nombre Equipo'FROM sales AS s, users AS u, clients AS c, teams AS t WHERE s.userId = u.id and t.id = %s AND s.clientId = c.id AND u.teamId = t.id GROUP BY  s.id order by s.id",
         (id),
     )
     data = cursor.fetchall()
     cursor.close()
-    data_res = {"name": data[0][0], "sales": data[0][1]}
+    data_res = []
+    for d in data:
+        data_res.append(
+            {
+                "id": d[0],
+                "createdAt": d[1],
+                "clientName": d[2],
+                "amount": d[3],
+                "userName": d[4],
+                "teamName": d[5],
+            }
+        )
     message = {"message": "sales by teams", "data": data_res}
+    response = jsonify(message)
+    response.status_code = 200
+    return response
+
+
+# get all
+@app.route("/sales", methods=["GET"])
+def get_all_sales():
+    """
+    sales
+    GET ALL
+    """
+    cursor = mysql.connection.cursor()
+    cursor.execute(
+        "SELECT s.id AS 'Id Venta', s.createdAt AS 'Fecha Venta',c.name AS 'Nombre Cliente',s.amount AS 'Monto',u.name AS 'Nombre Usuario',t.name AS 'Nombre Equipo'FROM sales AS s, users AS u, clients AS c, teams AS t WHERE s.userId = u.id AND s.clientId = c.id AND u.teamId = t.id GROUP BY  s.id order by s.id",
+    )
+    data = cursor.fetchall()
+    cursor.close()
+    data_res = []
+    for d in data:
+        data_res.append(
+            {
+                "id": d[0],
+                "createdAt": d[1],
+                "clientName": d[2],
+                "amount": d[3],
+                "userName": d[4],
+                "teamName": d[5],
+            }
+        )
+    message = {"message": "sales listed", "data": data_res}
     response = jsonify(message)
     response.status_code = 200
     return response
